@@ -1,356 +1,339 @@
 import Link from "next/link";
 import Image from "next/image";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
-import { db } from "@/db";
-import { products } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import type { Product } from "@/db/schema";
+import {
+  CATEGORIES,
+  CATEGORY_IMAGES,
+  POPULAR_SLUGS,
+  PRODUCTS,
+  TELEGRAM_URL,
+  categoryCounts,
+  formatPrice,
+  getProduct,
+} from "@/lib/catalog";
 
-async function getFeaturedProducts(): Promise<Product[]> {
-  try {
-    return await db
-      .select()
-      .from(products)
-      .where(and(eq(products.isFeatured, true), eq(products.inStock, true)))
-      .limit(8);
-  } catch {
-    return [];
-  }
-}
-
-async function getNewProducts(): Promise<Product[]> {
-  try {
-    return await db
-      .select()
-      .from(products)
-      .where(eq(products.isNew, true))
-      .limit(4);
-  } catch {
-    return [];
-  }
-}
-
-const brands = [
-  { name: "Nike", bg: "#000000", textColor: "#ffffff" },
-  { name: "Jordan", bg: "#111111", textColor: "#ffffff" },
-  { name: "Adidas", bg: "#000000", textColor: "#ffffff" },
-  { name: "New Balance", bg: "#CC0000", textColor: "#ffffff" },
-  { name: "Converse", bg: "#000000", textColor: "#ffffff" },
-  { name: "Vans", bg: "#111111", textColor: "#ffffff" },
-  { name: "Supreme", bg: "#CC0000", textColor: "#ffffff" },
-  { name: "Stone Island", bg: "#000000", textColor: "#ffffff" },
+const stats = [
+  { value: "4 900+", label: "выполненных заказов" },
+  { value: "4.9", label: "средняя оценка" },
+  { value: "1–4 дня", label: "срок доставки" },
 ];
 
-export default async function HomePage() {
-  const featuredProducts = await getFeaturedProducts();
-  const newProducts = await getNewProducts();
-  const hasProducts = featuredProducts.length > 0;
+const features = [
+  {
+    title: "Проверка перед отправкой",
+    text: "Осматриваем пару, комплект и коробку. Присылаем фото вашей конкретной пары до отправки.",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+      />
+    ),
+  },
+  {
+    title: "Доставка по всей России",
+    text: "СДЭК, Boxberry и Почта России. От 15 000 ₽ доставка за наш счет.",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"
+      />
+    ),
+  },
+  {
+    title: "Поможем с размером",
+    text: "Подскажем посадку конкретной модели и подберем размер по длине стопы в сантиметрах.",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+      />
+    ),
+  },
+  {
+    title: "Менеджер на связи",
+    text: "Отвечаем в Telegram ежедневно с 10:00 до 22:00 по московскому времени.",
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
+      />
+    ),
+  },
+];
+
+const reviews = [
+  {
+    text: "Заказал Samba OG, менеджер помог с размером — сел идеально. Фото пары прислали до отправки, доставили за два дня.",
+    author: "Артем, Москва",
+  },
+  {
+    text: "Брала GEL-Kayano 14, выглядят даже лучше, чем на фото. Приятно, что отвечают быстро и без навязывания.",
+    author: "Дарья, Санкт-Петербург",
+  },
+  {
+    text: "Salomon XT-6 искал долго, здесь нашлись в нужном размере. Упаковали аккуратно, всё в порядке.",
+    author: "Ильдар, Казань",
+  },
+];
+
+const faq = [
+  {
+    q: "Как оформить заказ?",
+    a: "Добавьте пару в корзину, выберите размер и заполните форму заказа. Менеджер свяжется с вами в Telegram или по телефону, подтвердит наличие и согласует доставку.",
+  },
+  {
+    q: "Можно ли оплатить на сайте?",
+    a: "Онлайн-оплата появится в ближайшее время. Сейчас заказ подтверждает менеджер: оплату можно внести переводом после проверки пары или при получении — как вам удобнее.",
+  },
+  {
+    q: "Что если размер не подойдет?",
+    a: "Обменяем на другой размер в течение 14 дней с момента получения, если пара не была в носке и сохранен комплект. Если нужного размера нет в наличии — вернем деньги.",
+  },
+  {
+    q: "AMVER — официальный магазин брендов?",
+    a: "Нет, мы не официальный ритейлер Nike, adidas и других брендов. Работаем с проверенными поставщиками оригинальных пар и проверяем каждую пару перед отправкой — поэтому отвечаем за то, что приезжает в коробке.",
+  },
+];
+
+export default function HomePage() {
+  const counts = categoryCounts();
+  const popular = POPULAR_SLUGS.map((slug) => getProduct(slug)).filter(
+    (p): p is NonNullable<typeof p> => Boolean(p),
+  );
+  const bestseller = PRODUCTS[0];
 
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
-
-      {/* Hero Section */}
-      <section className="relative bg-black text-white overflow-hidden">
-        <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1600&q=90"
-            alt="Hero Sneaker"
-            fill
-            className="object-cover opacity-40"
-            priority
-            unoptimized
-          />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 md:py-48">
-          <div className="max-w-2xl">
-            <div className="inline-block bg-red-600 text-white text-xs font-bold px-3 py-1 tracking-widest uppercase mb-4">
-              New Season 2024
-            </div>
-            <h1 className="text-5xl md:text-7xl font-black uppercase leading-none tracking-tight mb-6">
-              Move in
-              <br />
-              <span className="text-white">Style.</span>
-              <br />
-              <span className="text-red-500">Always.</span>
-            </h1>
-            <p className="text-gray-300 text-lg mb-8 max-w-md">
-              Authentic sneakers and premium streetwear. Shop the latest drops
-              from Nike, Jordan, Adidas, and more.
-            </p>
-            <div className="flex flex-wrap gap-4">
-            <Link href="/products?category=sneakers" className="bg-black text-white px-6 py-3 text-sm font-semibold tracking-widest uppercase transition-all duration-200 hover:bg-red-600">
-              Shop Sneakers
-            </Link>
-              <Link
-                href="/products?category=clothing"
-                className="border border-white text-white px-6 py-3 text-sm font-semibold tracking-widest uppercase transition-all duration-200 hover:bg-white hover:text-black"
-              >
-                Shop Clothing
-              </Link>
-            </div>
-          </div>
-        </div>
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-          <span className="text-white/50 text-xs tracking-widest uppercase">Scroll</span>
-          <div className="w-px h-8 bg-white/30" />
-        </div>
-      </section>
-
-      {/* Category Cards */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Sneakers */}
-          <Link href="/products?category=sneakers" className="group relative overflow-hidden bg-gray-100 aspect-[4/3]">
-            <Image
-              src="https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?w=800&q=80"
-              alt="Sneakers"
-              fill
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-              unoptimized
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-            <div className="absolute bottom-6 left-6">
-              <p className="text-white text-xs font-semibold uppercase tracking-widest mb-1">
-                Collection
-              </p>
-              <h3 className="text-white text-2xl font-black uppercase">
-                Sneakers
-              </h3>
-              <span className="text-red-400 text-sm font-semibold mt-1 block group-hover:text-white transition-colors">
-                Shop Now →
-              </span>
-            </div>
-          </Link>
-
-          {/* Clothing */}
-          <Link href="/products?category=clothing" className="group relative overflow-hidden bg-gray-100 aspect-[4/3]">
-            <Image
-              src="https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=800&q=80"
-              alt="Clothing"
-              fill
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-              unoptimized
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-            <div className="absolute bottom-6 left-6">
-              <p className="text-white text-xs font-semibold uppercase tracking-widest mb-1">
-                Collection
-              </p>
-              <h3 className="text-white text-2xl font-black uppercase">
-                Clothing
-              </h3>
-              <span className="text-red-400 text-sm font-semibold mt-1 block group-hover:text-white transition-colors">
-                Shop Now →
-              </span>
-            </div>
-          </Link>
-
-          {/* New Arrivals */}
-          <Link href="/products?new=true" className="group relative overflow-hidden bg-black aspect-[4/3]">
-            <Image
-              src="https://images.unsplash.com/photo-1584735175315-9d5df23be7be?w=800&q=80"
-              alt="New Arrivals"
-              fill
-              className="object-cover opacity-60 transition-transform duration-700 group-hover:scale-105"
-              unoptimized
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-            <div className="absolute bottom-6 left-6">
-              <div className="inline-block bg-red-600 text-white text-xs font-bold px-2 py-0.5 tracking-widest uppercase mb-2">
-                Just Dropped
-              </div>
-              <h3 className="text-white text-2xl font-black uppercase">
-                New Arrivals
-              </h3>
-              <span className="text-red-400 text-sm font-semibold mt-1 block group-hover:text-white transition-colors">
-                Shop Now →
-              </span>
-            </div>
-          </Link>
-        </div>
-      </section>
-
-      {/* Features Bar */}
-      <section className="bg-gray-50 border-y border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { icon: "🔐", label: "100% Authentic", sub: "All products verified" },
-              { icon: "🚚", label: "Free Shipping", sub: "On orders over $150" },
-              { icon: "↩️", label: "Easy Returns", sub: "30-day return policy" },
-              { icon: "💳", label: "Secure Payment", sub: "Encrypted checkout" },
-            ].map(({ icon, label, sub }) => (
-              <div key={label} className="flex items-center gap-3">
-                <span className="text-2xl">{icon}</span>
-                <div>
-                  <p className="font-bold text-sm uppercase tracking-wide">{label}</p>
-                  <p className="text-gray-500 text-xs">{sub}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Products */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="flex items-end justify-between mb-8">
+    <>
+      {/* Hero */}
+      <section className="border-b border-zinc-100 bg-zinc-50">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
           <div>
-            <p className="text-red-600 text-xs font-bold uppercase tracking-widest mb-1">
-              Hand-picked
+            <h1 className="text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+              Оригинальные кроссовки без переплат и лишних обещаний
+            </h1>
+            <p className="mt-6 max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg">
+              Nike, adidas, New Balance, ASICS и Salomon. Проверяем каждую
+              пару, показываем фото до отправки и помогаем выбрать размер. Цены
+              в рублях, доставка по всей России.
             </p>
-            <h2 className="text-3xl font-black tracking-tight uppercase">Featured Products</h2>
-          </div>
-          <Link
-            href="/products"
-            className="text-sm font-semibold uppercase tracking-widest hover:text-red-600 transition-colors hidden sm:block"
-          >
-            View All →
-          </Link>
-        </div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/catalog"
+                className="rounded-full bg-zinc-900 px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
+              >
+                Смотреть каталог
+              </Link>
+              <a
+                href={TELEGRAM_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-900"
+              >
+                Написать менеджеру
+              </a>
+            </div>
 
-        {!hasProducts ? (
-          <div className="text-center py-16 bg-gray-50">
-            <p className="text-gray-400 mb-4">Loading products...</p>
-            <Link href="/api/seed" className="bg-black text-white px-6 py-3 text-sm font-semibold tracking-widest uppercase">
-              Initialize Store
+            <dl className="mt-12 grid grid-cols-3 gap-6 border-t border-zinc-200 pt-8">
+              {stats.map((stat) => (
+                <div key={stat.label}>
+                  <dt className="order-last mt-1 text-xs text-zinc-500 sm:text-sm">
+                    {stat.label}
+                  </dt>
+                  <dd className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+                    {stat.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="relative">
+            <div className="relative overflow-hidden rounded-3xl bg-white shadow-2xl shadow-zinc-300/50">
+              <div className="relative aspect-[4/3]">
+                <Image
+                  src={bestseller.image}
+                  alt="Белые кроссовки с красной подошвой на минималистичном подиуме"
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover"
+                />
+              </div>
+            </div>
+            <div className="absolute -bottom-6 left-6 rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-xl shadow-zinc-300/40">
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                Бестселлер недели
+              </p>
+              <p className="mt-1 text-sm font-bold text-zinc-900">
+                {bestseller.name} · {formatPrice(bestseller.price)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Категории */}
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Категории</h2>
+        <p className="mt-3 text-zinc-600">
+          Выберите направление — фильтры в каталоге откроются уже настроенными.
+        </p>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {CATEGORIES.map((category) => (
+            <Link
+              key={category}
+              href={`/catalog?category=${encodeURIComponent(category)}`}
+              className="group relative aspect-[4/5] overflow-hidden rounded-2xl bg-zinc-100"
+            >
+              <Image
+                src={CATEGORY_IMAGES[category]}
+                alt={`Категория ${category}`}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-zinc-950/10 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5">
+                <p className="text-lg font-bold text-white">{category}</p>
+                <p className="text-sm text-zinc-300">
+                  {counts[category]} моделей
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Популярные модели */}
+      <section className="bg-zinc-50 py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+                Популярные модели
+              </h2>
+              <p className="mt-3 text-zinc-600">
+                То, что чаще всего заказывают в этом месяце.
+              </p>
+            </div>
+            <Link
+              href="/catalog"
+              className="rounded-full border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-900"
+            >
+              Весь каталог
             </Link>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {popular.map((product) => (
+              <ProductCard key={product.slug} product={product} />
             ))}
           </div>
-        )}
-      </section>
-
-      {/* New Arrivals Section */}
-      {newProducts.length > 0 && (
-        <section className="bg-black py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <p className="text-red-600 text-xs font-bold uppercase tracking-widest mb-1">
-                  Fresh Drop
-                </p>
-                <h2 className="text-white text-3xl font-black uppercase tracking-tight">
-                  New Arrivals
-                </h2>
-              </div>
-              <Link
-                href="/products?new=true"
-                className="text-sm font-semibold uppercase tracking-widest text-white hover:text-red-500 transition-colors hidden sm:block"
-              >
-                View All →
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {newProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Promo Banner */}
-      <section className="relative overflow-hidden bg-gray-900">
-        <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1556048219-bb6978360b84?w=1600&q=80"
-            alt="Running"
-            fill
-            className="object-cover opacity-25"
-            unoptimized
-          />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-          <p className="text-red-500 text-xs font-bold uppercase tracking-widest mb-3">
-            Limited Time
-          </p>
-          <h2 className="text-white text-4xl md:text-6xl font-black uppercase tracking-tight mb-4">
-            Up to 40% Off
-            <br />
-            <span className="text-red-500">Sale Items</span>
-          </h2>
-          <p className="text-gray-400 mb-8">
-            Don&apos;t miss out on these exclusive deals. Limited stock available.
-          </p>
-          <Link href="/products?sale=true" className="bg-black text-white px-6 py-3 text-sm font-semibold tracking-widest uppercase transition-all hover:bg-red-600">
-            Shop the Sale
-          </Link>
         </div>
       </section>
 
-      {/* Brands Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-10">
-          <p className="text-red-600 text-xs font-bold uppercase tracking-widest mb-1">
-            Premium Partners
-          </p>
-          <h2 className="text-3xl font-black tracking-tight uppercase">Shop by Brand</h2>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {brands.map((brand) => (
-            <Link
-              key={brand.name}
-              href={`/brands?brand=${brand.name}`}
-              className="group flex flex-col items-center justify-center bg-gray-50 hover:bg-black transition-all duration-200 py-6 px-3 text-center"
+      {/* Почему AMVER */}
+      <section id="why" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8">
+        <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Почему AMVER</h2>
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="rounded-2xl border border-zinc-200 bg-white p-6"
             >
-              <span className="font-black text-xs uppercase tracking-widest text-black group-hover:text-white transition-colors">
-                {brand.name}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Instagram-style Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-black tracking-tight uppercase">Wear it. Show it.</h2>
-          <p className="text-gray-500 mt-2">
-            Community style from{" "}
-            <span className="font-bold">@sole.and.style</span>
-          </p>
-        </div>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-1">
-          {[
-            "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80",
-            "https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=400&q=80",
-            "https://images.unsplash.com/photo-1539185441755-769473a23570?w=400&q=80",
-            "https://images.unsplash.com/photo-1607522370275-f6fd21250e4d?w=400&q=80",
-            "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&q=80",
-            "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&q=80",
-          ].map((src, i) => (
-            <div key={i} className="group relative aspect-square overflow-hidden bg-gray-100 cursor-pointer">
-              <Image
-                src={src}
-                alt={`Style ${i + 1}`}
-                fill
-                className="object-cover transition-transform duration-500 group-hover:scale-110"
-                unoptimized
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-900 text-white">
                 <svg
-                  className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  fill="currentColor"
                   viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  className="h-5 w-5"
+                  aria-hidden="true"
                 >
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                  {feature.icon}
                 </svg>
-              </div>
+              </span>
+              <h3 className="mt-4 text-base font-bold">{feature.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600">{feature.text}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <Footer />
-    </div>
+      {/* Отзывы */}
+      <section id="reviews" className="scroll-mt-24 bg-zinc-50 py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+            Отзывы покупателей
+          </h2>
+          <div className="mt-8 grid gap-5 md:grid-cols-3">
+            {reviews.map((review) => (
+              <figure
+                key={review.author}
+                className="flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-6"
+              >
+                <blockquote className="text-sm leading-relaxed text-zinc-700">
+                  «{review.text}»
+                </blockquote>
+                <figcaption className="mt-5 text-sm font-semibold text-zinc-900">
+                  {review.author}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="mx-auto max-w-4xl scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8">
+        <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Частые вопросы</h2>
+        <p className="mt-3 text-zinc-600">
+          Не нашли ответ? Напишите менеджеру — ответим в течение рабочего дня.
+        </p>
+        <a
+          href={TELEGRAM_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-5 inline-flex rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
+        >
+          Написать менеджеру
+        </a>
+
+        <div className="mt-8 divide-y divide-zinc-200 rounded-2xl border border-zinc-200 bg-white">
+          {faq.map((item) => (
+            <details key={item.q} className="group px-6 py-5">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-semibold text-zinc-900 [&::-webkit-details-marker]:hidden">
+                {item.q}
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-600">{item.a}</p>
+            </details>
+          ))}
+        </div>
+
+        <div className="mt-10 flex justify-center">
+          <a
+            href={TELEGRAM_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex rounded-full border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-800 transition-colors hover:border-zinc-900"
+          >
+            Написать менеджеру
+          </a>
+        </div>
+      </section>
+    </>
   );
 }
